@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>foreman — use cases</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+
+    <style>
+      :root {
+        --fg: #f5f5f7;
+        --muted: #a0a0a8;
+        --good: #4ade80;
+        --bad: #f87171;
+        --accent: #60a5fa;
+      }
+
+      .reveal {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+      }
+
+      .reveal h1, .reveal h2, .reveal h3 {
+        text-transform: none;
+        letter-spacing: -0.01em;
+      }
+
+      .reveal h1 { font-weight: 700; }
+      .reveal h2 { font-weight: 600; font-size: 1.7em; }
+      .reveal h3 { font-weight: 600; font-size: 1.15em; color: var(--muted); }
+
+      .reveal section.title h1 { font-size: 3.2em; }
+      .reveal section.title .subtitle {
+        color: var(--muted);
+        font-size: 1.1em;
+        margin-top: 0.5em;
+      }
+
+      .reveal ul, .reveal ol { display: block; margin-left: 1em; }
+      .reveal li { margin: 0.35em 0; line-height: 1.4; }
+
+      .pill {
+        display: inline-block;
+        padding: 0.15em 0.6em;
+        border-radius: 999px;
+        font-size: 0.5em;
+        font-weight: 600;
+        vertical-align: middle;
+        margin-left: 0.5em;
+      }
+      .pill.good { background: #14532d; color: var(--good); }
+      .pill.bad  { background: #5b1a1a; color: var(--bad); }
+
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.2em;
+        text-align: left;
+      }
+      .grid2 .card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 0.9em 1.1em;
+      }
+      .grid2 .card h3 { margin: 0 0 0.3em 0; color: var(--fg); font-size: 1em; }
+      .grid2 .card p  { margin: 0; color: var(--muted); font-size: 0.78em; line-height: 1.45; }
+
+      .accent { color: var(--accent); }
+      .good   { color: var(--good); }
+      .bad    { color: var(--bad); }
+      .muted  { color: var(--muted); }
+
+      .footnote {
+        position: absolute;
+        bottom: 0.6em;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.55em;
+      }
+
+      .reveal pre code { font-size: 0.78em; line-height: 1.4; }
+    </style>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <!-- Title -->
+        <section class="title">
+          <h1>foreman</h1>
+          <div class="subtitle">Identity &amp; memory for AI agents — when to use it, when to skip it</div>
+        </section>
+
+        <!-- What foreman is -->
+        <section>
+          <h2>What foreman is</h2>
+          <ul>
+            <li>Per-user identity (<span class="accent">peers</span>) and conversation containers (<span class="accent">sessions</span>)</li>
+            <li>Long-term semantic memory over messages and derived facts</li>
+            <li>Background workers that turn messages into <em>explicit</em>, <em>deductive</em>, and <em>inductive</em> knowledge</li>
+            <li><span class="accent">Peer cards</span> — evolving theory-of-mind for each peer about each other peer</li>
+            <li>A dialectic agent that answers <em>"what does X think / know / want?"</em> with tool-calling over the above</li>
+          </ul>
+          <p class="muted" style="font-size:0.7em;margin-top:1em;">In one line: foreman adds <strong>continuity of relationship</strong> to an agent that would otherwise forget you between turns.</p>
+        </section>
+
+        <!-- The decision in one slide -->
+        <section>
+          <h2>The decision</h2>
+          <div class="grid2">
+            <div class="card">
+              <h3 class="good">Reach for foreman when…</h3>
+              <p>You expect the agent to <strong>recognize the same person across sessions</strong>, accumulate understanding of them, and act on that understanding. The relationship outlives any single conversation.</p>
+            </div>
+            <div class="card">
+              <h3 class="bad">Skip foreman when…</h3>
+              <p>The agent's job ends when the request ends. There is no "next time," no theory of the user, no benefit to remembering. Memory becomes latency, cost, and a privacy surface for no payoff.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- In-scope: section divider -->
+        <section>
+          <h2 class="good">In scope <span class="pill good">use foreman</span></h2>
+          <p class="muted">Agents whose value compounds with knowing the user.</p>
+        </section>
+
+        <!-- In-scope #1 -->
+        <section>
+          <h2>Personal coach / companion</h2>
+          <h3>fitness, journaling, language tutor, therapy adjunct</h3>
+          <ul>
+            <li>Same user, weeks-to-years of interaction</li>
+            <li>Goals, setbacks, preferences must persist between sessions</li>
+            <li><span class="accent">Dreamer</span> turns scattered chats into stable inductions ("user gives up on cardio when traveling")</li>
+            <li><span class="accent">Peer cards</span> let the agent open every session already knowing who it's talking to</li>
+          </ul>
+        </section>
+
+        <!-- In-scope #2 -->
+        <section>
+          <h2>Customer support with continuity</h2>
+          <h3>SaaS, fintech, insurance — any repeat-contact channel</h3>
+          <ul>
+            <li>The same customer opens five tickets over a year; an agent that re-asks "what plan are you on?" each time is a downgrade</li>
+            <li>Foreman gives the agent: prior-ticket recall, derived preferences, account-level theory-of-mind</li>
+            <li>Session-scoped JWTs map cleanly to ticket-scoped agent access</li>
+            <li>Webhooks let CRM stay in sync without polling</li>
+          </ul>
+        </section>
+
+        <!-- In-scope #3 -->
+        <section>
+          <h2>Multi-peer collaboration</h2>
+          <h3>group chats, advisory boards, agent-to-agent</h3>
+          <ul>
+            <li>foreman's first-class primitive: a session containing <em>multiple peers</em> (humans and/or agents)</li>
+            <li>Each peer holds a <em>distinct</em> model of every other peer — the dialectic agent answers "what does Alice think Bob believes?"</li>
+            <li>Fits negotiation copilots, deal rooms, multi-agent simulations, GTM war-rooms</li>
+            <li>Replacing this with a single shared context loses the per-perspective view that makes the product work</li>
+          </ul>
+        </section>
+
+        <!-- In-scope #4 -->
+        <section>
+          <h2>Sales / GTM copilots</h2>
+          <h3>account-based selling, CS, partnerships</h3>
+          <ul>
+            <li>One peer = one prospect or account; the agent's worldview about them is the moat</li>
+            <li><span class="accent">Deriver</span> extracts explicit facts ("budget Q3", "champion: Priya") from call notes and email threads</li>
+            <li><span class="accent">Summarizer</span> keeps a rolling state-of-the-account that fits in any prompt</li>
+            <li>Per-workspace LLM config — each tenant brings their own model + key</li>
+          </ul>
+        </section>
+
+        <!-- In-scope #5 -->
+        <section>
+          <h2>Research &amp; longitudinal observability of users</h2>
+          <h3>product analytics with a soul, UXR copilots</h3>
+          <ul>
+            <li>You want to ask <em>"what has this cohort started caring about over the last 90 days?"</em></li>
+            <li>Surprisal-prioritized dreamer surfaces the deltas, not just the volume</li>
+            <li>MLflow Tracing on every dialectic call gives auditability — important when conclusions about humans are involved</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope: section divider -->
+        <section>
+          <h2 class="bad">Out of scope <span class="pill bad">skip foreman</span></h2>
+          <p class="muted">Where foreman adds latency, cost, and complexity for no return — or actively gets in the way.</p>
+        </section>
+
+        <!-- Out-of-scope #1 -->
+        <section>
+          <h2>Stateless Q&amp;A / FAQ bots</h2>
+          <h3>"what time does the store close?"</h3>
+          <ul>
+            <li>No user model needed — every visitor is interchangeable</li>
+            <li>Inline embedding on every message + dialectic tool-loops add hundreds of ms and dollars for zero recall benefit</li>
+            <li>A single LLM call with the FAQ in-context is the right answer</li>
+            <li>Peer cards never accumulate signal because there's no continuity to learn from</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #2 -->
+        <section>
+          <h2>Single-turn tools</h2>
+          <h3>translators, summarizers, code formatters, classifiers</h3>
+          <ul>
+            <li>The unit of work is one input → one output; there is no "session" to be coherent across</li>
+            <li>foreman would turn a 200ms function into a multi-hop dance through Lakebase, Vector Search, and a tool-calling agent</li>
+            <li>If you find yourself creating a fresh peer per request, you're paying for a memory layer to immediately throw the memory away</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #3 -->
+        <section>
+          <h2>Pure RAG over a static corpus</h2>
+          <h3>docs search, legal lookup, internal wiki Q&amp;A</h3>
+          <ul>
+            <li>The knowledge lives in <em>documents</em>, not in evolving relationships with users</li>
+            <li>Use Vector Search directly — foreman's value-add (peers, peer cards, dialectic, dreamer) doesn't apply to static text</li>
+            <li>Adding foreman here means maintaining a Lakebase instance and four scheduled jobs to do nothing for you</li>
+            <li>Caveat: <em>personalized</em> RAG ("what would <em>this</em> user want from these docs?") <strong>does</strong> belong in foreman</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #4 -->
+        <section>
+          <h2>Hard real-time / voice agents</h2>
+          <h3>sub-300ms turn-taking, IVR, live captioning</h3>
+          <ul>
+            <li>foreman's freshness guarantee is &lt;1s, not &lt;100ms — fine for chat, fatal for voice barge-in</li>
+            <li>The dialectic agent is a tool-calling loop; each hop costs a model call</li>
+            <li>For voice, keep memory in the LLM's session context and offload only between calls — possibly to foreman as a sidecar</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #5 -->
+        <section>
+          <h2>One-shot / anonymous interactions</h2>
+          <h3>marketing chat widgets, kiosk concierges, demo bots</h3>
+          <ul>
+            <li>No stable identity → no peer → no memory worth keeping</li>
+            <li>The deriver and dreamer will dutifully spend tokens turning noise into "facts" about a peer who will never return</li>
+            <li>You end up with a Lakebase full of orphan peer cards and a bill to match</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #6 -->
+        <section>
+          <h2>"It all fits in the context window"</h2>
+          <h3>short-lived agents, single-document copilots</h3>
+          <ul>
+            <li>If the entire relevant history fits comfortably in 200K tokens and you don't need cross-session recall, just <em>pass the history</em></li>
+            <li>foreman shines when state must <strong>outlive</strong> the prompt — across sessions, across days, across agents</li>
+            <li>Don't introduce a database to solve a problem the model already solved for free</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #7 -->
+        <section>
+          <h2>Strict consent / minimization regimes</h2>
+          <h3>regulated health data, minors, jurisdictions requiring explicit storage approval</h3>
+          <ul>
+            <li>The deriver and dreamer write <em>inferred</em> facts about users without per-fact consent</li>
+            <li>Peer cards are an evolving psychological profile — a feature in coaching, a liability under strict minimization rules</li>
+            <li>If every stored attribute needs a user-approved provenance trail, foreman's autonomous derivation is the wrong default</li>
+            <li>Mitigation exists (disable dreamer, restrict deriver to explicit-only), but at that point you're using ~30% of foreman</li>
+          </ul>
+        </section>
+
+        <!-- Out-of-scope #8 -->
+        <section>
+          <h2>Throwaway batch pipelines</h2>
+          <h3>nightly classification of millions of records, LLM ETL</h3>
+          <ul>
+            <li>No peer, no session — the workload is rows, not relationships</li>
+            <li>Foreman's per-message embed-and-upsert is the wrong primitive for batch; use Spark + <code>ai_query</code> directly</li>
+            <li>If you find yourself disabling all four background jobs, you didn't need foreman</li>
+          </ul>
+        </section>
+
+        <!-- Summary -->
+        <section>
+          <h2>Heuristic</h2>
+          <div class="grid2">
+            <div class="card">
+              <h3 class="good">Use foreman if you can finish this sentence</h3>
+              <p>"Next time this user comes back, the agent should already know ____ about them — and that knowledge should keep evolving."</p>
+            </div>
+            <div class="card">
+              <h3 class="bad">Skip foreman if</h3>
+              <p>The answer is "nothing" — or the user has no "next time."</p>
+            </div>
+          </div>
+          <p class="muted" style="font-size:0.7em;margin-top:1.5em;">
+            foreman is a <em>relationship</em> system, not a memory bolt-on. The further your problem is from "an agent that knows people," the more foreman costs without paying back.
+          </p>
+        </section>
+
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+    <script>
+      Reveal.initialize({
+        hash: true,
+        slideNumber: "c/t",
+        transition: "slide",
+        plugins: [RevealHighlight, RevealNotes],
+      });
+    </script>
+  </body>
+</html>
