@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>foreman — architecture, data flow, components</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+
+  <style>
+    :root {
+      --fg: #e8e8e8;
+      --muted: #9aa0a6;
+      --accent: #6cb6ff;
+      --accent2: #ffcf6c;
+      --accent3: #c890ff;
+      --good: #8be9a3;
+      --warn: #ff8a80;
+      --bg-card: #1c1f24;
+      --border: #2a2f37;
+    }
+    .reveal { font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; letter-spacing: -0.01em; font-weight: 700; }
+    .reveal h1 { font-size: 2.4em; }
+    .reveal h2 { font-size: 1.6em; color: var(--accent); }
+    .reveal h3 { font-size: 1.15em; color: var(--accent2); }
+    .reveal section { text-align: left; }
+    .reveal section.title-slide { text-align: center; }
+    .reveal p, .reveal li { font-size: 0.78em; line-height: 1.45; }
+    .reveal small { color: var(--muted); }
+    .reveal code { background: #0f1115; padding: 1px 6px; border-radius: 4px; color: var(--accent2); font-size: 0.85em; }
+    .reveal pre { box-shadow: none; width: 100%; }
+    .reveal pre code { font-size: 0.55em; line-height: 1.35; padding: 14px 18px; border-radius: 6px; }
+    .reveal table { font-size: 0.62em; border-collapse: collapse; width: 100%; margin: 0.4em 0; }
+    .reveal table th, .reveal table td {
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .reveal table th { background: #14171c; color: var(--accent); font-weight: 600; }
+    .reveal table tr:nth-child(even) td { background: #161a20; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .card h3 { margin-top: 0; margin-bottom: 6px; }
+    .card p, .card li { font-size: 0.7em; margin: 4px 0; }
+    .card small { font-size: 0.65em; }
+
+    .pill {
+      display: inline-block;
+      font-size: 0.55em;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-right: 4px;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+    }
+    .pill-lakebase { background: rgba(108,182,255,0.15); color: var(--accent); border: 1px solid rgba(108,182,255,0.4); }
+    .pill-vs       { background: rgba(200,144,255,0.15); color: var(--accent3); border: 1px solid rgba(200,144,255,0.4); }
+    .pill-delta    { background: rgba(255,207,108,0.15); color: var(--accent2); border: 1px solid rgba(255,207,108,0.4); }
+    .pill-app      { background: rgba(139,233,163,0.15); color: var(--good); border: 1px solid rgba(139,233,163,0.4); }
+    .pill-job      { background: rgba(255,138,128,0.15); color: var(--warn); border: 1px solid rgba(255,138,128,0.4); }
+
+    .lead { font-size: 0.95em; color: var(--muted); }
+    .footer-note { position: absolute; bottom: 14px; left: 40px; right: 40px; font-size: 0.55em; color: var(--muted); }
+
+    .ascii {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.6em;
+      line-height: 1.35;
+      background: #0f1115;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      white-space: pre;
+      color: #d8dee9;
+      overflow: auto;
+    }
+
+    .center { text-align: center; }
+    .muted { color: var(--muted); }
+    .accent { color: var(--accent); }
+    .accent2 { color: var(--accent2); }
+    .accent3 { color: var(--accent3); }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+
+    .legend { font-size: 0.6em; color: var(--muted); margin-top: 6px; }
+    .legend span { margin-right: 12px; }
+
+    .reveal .progress { color: var(--accent); }
+    .reveal .controls { color: var(--accent); }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- =========================== TITLE =========================== -->
+      <section class="title-slide">
+        <h1>foreman</h1>
+        <p class="lead">A clean-room rebuild of <em>honcho.dev</em> — an identity &amp; memory layer for AI agents — on Databricks.</p>
+        <p><small>Architecture · data flow · component-by-component</small></p>
+        <p style="margin-top: 1.5em;">
+          <span class="pill pill-lakebase">Lakebase Postgres</span>
+          <span class="pill pill-vs">Vector Search</span>
+          <span class="pill pill-delta">Delta / UC</span>
+          <span class="pill pill-app">FastAPI on Apps</span>
+          <span class="pill pill-job">Lakeflow Jobs</span>
+        </p>
+      </section>
+
+      <!-- =========================== WHAT =========================== -->
+      <section>
+        <h2>What foreman is</h2>
+        <ul>
+          <li><strong>Identity layer</strong> — workspaces, peers (humans or agents), sessions, messages.</li>
+          <li><strong>Memory layer</strong> — raw conversation recall + derived facts about peers (what they said, what we inferred).</li>
+          <li><strong>Dialectic agent</strong> — a tool-calling chat loop that reasons over that memory.</li>
+          <li><strong>Distributed as a Databricks Asset Bundle</strong> — one <code>bundle deploy</code> installs the entire footprint.</li>
+        </ul>
+        <p class="lead">Mental model: a brain with three storage organs and a few specialized workers.</p>
+      </section>
+
+      <!-- =========================== STORAGE LAYERS =========================== -->
+      <section>
+        <h2>Three storage layers, one role each</h2>
+        <div class="grid grid-3">
+          <div class="card">
+            <h3><span class="pill pill-lakebase">Lakebase</span> Ledger</h3>
+            <p>Postgres. The <strong>system of record</strong>. ACID, ordered reads, composite PKs, partial unique indexes.</p>
+            <p class="muted"><small>11 tables: workspaces, peers, sessions, session_peers, messages, documents, queue_items, active_queue_session, webhook_endpoints, peer_cards, workspace_llm_config (+ documents_mirror view).</small></p>
+          </div>
+          <div class="card">
+            <h3><span class="pill pill-vs">Vector Search</span> Recall</h3>
+            <p>Semantic memory. ANN reads in milliseconds.</p>
+            <p><strong><code>messages_idx</code></strong> — Direct Access, written inline by the app (&lt;1s freshness).</p>
+            <p><strong><code>documents_idx</code></strong> — Delta Sync with managed embeddings, sourced from <code>documents_delta</code>.</p>
+          </div>
+          <div class="card">
+            <h3><span class="pill pill-delta">Delta / UC</span> Derived</h3>
+            <p>Batch-processed insights — written by Spark jobs only.</p>
+            <p class="muted"><small><code>documents_delta</code>, <code>session_summaries_delta</code>, <code>webhook_results_delta</code>, <code>deriver_state</code>, <code>summarizer_state_delta</code>.</small></p>
+          </div>
+        </div>
+        <p class="lead" style="margin-top: 0.8em;">Key rule: <strong>Lakebase is the only truth.</strong> Delta and Vector Search are downstream views — rebuildable from Lakebase + messages, never the other way around.</p>
+      </section>
+
+      <!-- =========================== BIG PICTURE =========================== -->
+      <section>
+        <h2>Big-picture architecture</h2>
+<div class="ascii">                                ┌──────────────────────────────────────────────────────┐
+                                │                  Clients / SDKs / MCP                │
+                                └───────────────┬──────────────────────────────────────┘
+                                                │  HTTPS + JWT (HS256, hierarchical scopes)
+                                                ▼
+                          ┌──────────────────────────────────────────────┐
+                          │     FastAPI on Databricks Apps (async)       │
+                          │     routers/  +  dialectic chat agent        │
+                          └──┬───────────────┬───────────────────────┬───┘
+                             │ async SQLA    │ inline embed+upsert   │ llm_dispatch
+                             ▼               ▼                       ▼
+              ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
+              │  Lakebase Postgres │  │   messages_idx     │  │   Model Serving    │
+              │      (truth)       │  │   (Direct Access)  │  │  FMAPI / external  │
+              └────────┬───────────┘  └────────────────────┘  └────────────────────┘
+                       │ JDBC reads (watermarked)
+                       ▼
+              ┌────────────────────────────────────────────────────────┐
+              │  Four Lakeflow Jobs (Spark, sync)                      │
+              │  deriver · summarizer · dreamer · webhooks             │
+              └────────┬──────────────┬─────────────────┬──────────────┘
+                       ▼              ▼                 ▼
+              ┌────────────────┐  ┌──────────────┐  ┌──────────────────┐
+              │ documents_delta│  │ session_     │  │ webhook_results_ │
+              │  (UC Delta)    │  │ summaries_   │  │ delta            │
+              └──┬──────────┬──┘  │ delta        │  └──────────────────┘
+                 │          │     └──────────────┘
+                 ▼          ▼
+        ┌──────────┐  ┌──────────────────┐
+        │documents_│  │ documents_mirror │  ◄── Lakeflow synced table (reverse ETL)
+        │   idx    │  │   (Lakebase)     │
+        │ (VS sync)│  └──────────────────┘
+        └──────────┘</div>
+      </section>
+
+      <!-- =========================== COMPONENT MAP =========================== -->
+      <section>
+        <h2>Component map</h2>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3><span class="pill pill-app">FastAPI app</span> <code>src/foreman/app/</code></h3>
+            <p>Async REST surface + dialectic agent. Runs on Databricks Apps.</p>
+            <p><small><strong>Routers</strong>: workspaces, peers, sessions, messages, conclusions, webhooks, keys, chat.</small></p>
+          </div>
+          <div class="card">
+            <h3><span class="pill pill-job">Lakeflow Jobs</span> <code>src/foreman/jobs/</code></h3>
+            <p>Four scheduled Spark jobs. Read Lakebase via JDBC, write Delta.</p>
+            <p><small><strong>deriver</strong> (1m) · <strong>summarizer</strong> (5m) · <strong>dreamer</strong> (1h) · <strong>webhooks</strong> (1m). Plus <code>schema_init</code> one-shot.</small></p>
+          </div>
+          <div class="card">
+            <h3>Spine <code>src/foreman/lib/</code></h3>
+            <p>Frozen Phase-1 contracts every layer flows through.</p>
+            <p><small><code>config</code> · <code>lakebase</code> · <code>vector_search</code> · <code>auth</code> · <code>llm_dispatch</code> · <code>lakebase_read</code> · <code>delta_write</code> · <code>tracing</code>.</small></p>
+          </div>
+          <div class="card">
+            <h3>MCP server <code>src/foreman/mcp/</code></h3>
+            <p>stdio MCP server exposing ~10 foreman tools to MCP clients (e.g. Claude Code).</p>
+            <p><small>Auth via <code>databricks-sdk</code> (OAuth U2M / PAT / profile); <code>FOREMAN_TOKEN</code> overrides for CI.</small></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== SPINE DETAIL =========================== -->
+      <section>
+        <h2>The spine — frozen contracts</h2>
+        <table>
+          <thead><tr><th>Module</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>config.py</code></td><td><code>settings()</code> cached. Catalog/schema, Lakebase + VS endpoint names, per-role default Model Serving endpoints, embedding dim (1024).</td></tr>
+            <tr><td><code>lakebase.py</code></td><td>Async SQLAlchemy engine. Rolling <strong>50-min OAuth token refresh</strong> (Lakebase tokens expire after 1h). <code>async with session() as s:</code> from FastAPI handlers.</td></tr>
+            <tr><td><code>vector_search.py</code></td><td>Typed wrappers: <code>upsert_message</code>, <code>query_messages</code>, <code>query_documents</code>, <code>embed</code>. Lifecycle helpers <code>ensure_*_index</code> used by <code>schema_init</code>.</td></tr>
+            <tr><td><code>auth.py</code></td><td>HS256 JWT issuance + scope guards. Hierarchy: <strong>admin &gt; workspace &gt; peer/session</strong>. Signing key from Databricks secret <code>foreman/jwt_signing_key</code>.</td></tr>
+            <tr><td><code>llm_dispatch.py</code></td><td><strong>All LLM calls.</strong> Resolves <code>(workspace, role)</code> → endpoint via <code>workspace_llm_config</code>. <code>chat()</code> async + <code>chat_sync()</code> for Spark.</td></tr>
+            <tr><td><code>lakebase_read.py</code> / <code>delta_write.py</code></td><td>Sync helpers for Spark jobs — JDBC reads, MERGE/APPEND writes.</td></tr>
+            <tr><td><code>tracing.py</code></td><td>MLflow tracing init + <code>@trace</code> decorator. Tag spans with workspace/peer/session.</td></tr>
+          </tbody>
+        </table>
+        <p class="legend"><small>Rule: if you find a bug here, document it for Phase 3 — do not fix it in place. New routers/jobs/files outside this list are fair game.</small></p>
+      </section>
+
+      <!-- =========================== ROUTERS =========================== -->
+      <section>
+        <h2>FastAPI routers</h2>
+        <table>
+          <thead><tr><th>Router</th><th>Resource</th><th>Key endpoints</th></tr></thead>
+          <tbody>
+            <tr><td><code>workspaces.py</code></td><td>Top-level tenants</td><td>create / get / list / update</td></tr>
+            <tr><td><code>peers.py</code></td><td>Entities with persistent identity (humans or agents)</td><td>CRUD + peer card retrieval</td></tr>
+            <tr><td><code>sessions.py</code></td><td>Conversational contexts (M:N to peers via <code>session_peers</code>)</td><td>create / join / leave / list peers</td></tr>
+            <tr><td><code>messages.py</code></td><td>Append-only utterances in a session</td><td>create (writes Lakebase + embeds + upserts VS) / list / search</td></tr>
+            <tr><td><code>conclusions.py</code></td><td>Derived facts (documents) about peers</td><td>query by (observer, observed) pair</td></tr>
+            <tr><td><code>chat.py</code></td><td>Dialectic agent</td><td>POST chat → SSE stream of tool-calling reasoning</td></tr>
+            <tr><td><code>webhooks.py</code></td><td>Outbound notification endpoints</td><td>register URL + secret + event filter</td></tr>
+            <tr><td><code>keys.py</code></td><td>Scoped JWT issuance</td><td>admin issues workspace/peer/session tokens</td></tr>
+          </tbody>
+        </table>
+        <p class="legend"><small>Every route is JWT-guarded; the workspace path param is checked against the token's scope via <code>workspace_guard()</code> / <code>request_workspace_guard()</code> dependencies.</small></p>
+      </section>
+
+      <!-- =========================== FLOW A WRITE =========================== -->
+      <section>
+        <h2>Flow A — write path (message arrives)</h2>
+        <p class="lead"><code>POST /workspaces/{w}/sessions/{s}/messages</code></p>
+<div class="ascii">  client ──► FastAPI
+              │
+              ├─ 1 ─► Lakebase.messages         INSERT (durable truth)
+              │
+              ├─ 2 ─► embed(content)            Foundation Model API, 1024-dim
+              │
+              └─ 3 ─► messages_idx.upsert       Direct Access, inline
+                      ◄── 201 returned only after all three succeed</div>
+        <p>Synchronous so a <em>"send-then-immediately-query-memory"</em> flow has &lt;1s freshness — the app does the embed and upsert itself rather than waiting for a background pipeline.</p>
+        <p class="legend"><small>Concurrently, four jobs are processing the new row asynchronously — see Flow C.</small></p>
+      </section>
+
+      <!-- =========================== FLOW B READ =========================== -->
+      <section>
+        <h2>Flow B — read path (querying memory)</h2>
+<div class="ascii">  query ──► Vector Search
+              ├─ query_messages()    → messages_idx      raw conversation recall
+              └─ query_documents()   → documents_idx     derived-facts recall</div>
+        <ul>
+          <li>The dialectic agent and query endpoints <strong>never read Lakebase for memory</strong> — memory lives in Vector Search.</li>
+          <li>Lakebase is read only for <strong>CRUD metadata</strong> (list workspaces, get peer config, resolve LLM endpoint) and by <strong>jobs</strong> for watermarked tailing.</li>
+        </ul>
+        <p class="lead">The asymmetry is the whole design: <strong>synchronous freshness path via Direct Access VS, asynchronous derivation path via Delta + Delta Sync VS.</strong></p>
+      </section>
+
+      <!-- =========================== FLOW C JOBS =========================== -->
+      <section>
+        <h2>Flow C — background derivation</h2>
+        <p>Four Lakeflow Jobs, all Spark + sync, all read Lakebase via JDBC and write Delta:</p>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3><span class="pill pill-job">deriver</span> <small>every 1 min</small></h3>
+            <p>Pull new <code>messages</code> by watermark → LLM extracts explicit facts → MERGE <code>documents_delta</code> → trigger <code>documents_idx</code> sync.</p>
+          </div>
+          <div class="card">
+            <h3><span class="pill pill-job">summarizer</span> <small>every 5 min</small></h3>
+            <p>For sessions past an N-new-message threshold, LLM produces a rolling summary; APPEND <code>session_summaries_delta</code>.</p>
+          </div>
+          <div class="card">
+            <h3><span class="pill pill-job">dreamer</span> <small>hourly</small></h3>
+            <p>Surprisal-prioritized deduction → induction passes over explicit facts. Writes <code>deductive</code>/<code>inductive</code> documents with <code>source_ids</code> DAG; refreshes <code>peer_cards</code>.</p>
+          </div>
+          <div class="card">
+            <h3><span class="pill pill-job">webhooks</span> <small>every 1 min</small></h3>
+            <p>Drain <code>queue_items</code> where <code>task_type='webhook'</code> → POST with HMAC signature → APPEND <code>webhook_results_delta</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================== DOCUMENTS FLOW =========================== -->
+      <section>
+        <h2><code>documents_delta</code> — the derived-knowledge ledger</h2>
+<div class="ascii">                    deriver job (every 1 min)
+                          │ MERGE  (sha256 PK ⇒ idempotent)
+                          ▼
+                  ┌─────────────────┐
+                  │ documents_delta │   ◄── source of truth for derived facts
+                  │   (UC Delta)    │       CDF enabled
+                  └────────┬────────┘
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+   Delta Sync (managed         Lakeflow Synced Table
+   embeddings)                 (reverse ETL)
+              │                         │
+              ▼                         ▼
+      ┌──────────────┐         ┌──────────────────┐
+      │ documents_idx│         │ documents_mirror │
+      │     (VS)     │         │   (Lakebase)     │
+      └──────────────┘         └──────────────────┘
+            ▲                          ▲
+            │ ANN query                │ transactional FK joins
+            │ from app                 │ from app</div>
+        <p class="legend"><small>Delta is mandatory upstream because the Delta Sync VS index requires a UC Delta source with Change Data Feed — you cannot point Delta Sync at Postgres.</small></p>
+      </section>
+
+      <!-- =========================== OBSERVER/OBSERVED =========================== -->
+      <section>
+        <h2>Observer / observed — the perspective model</h2>
+        <p>Honcho's mental model: <strong>every peer maintains their own private picture of every other peer</strong>, including themselves. A fact is never bare — it is always <em>"observer X believes Y about observed Z"</em>.</p>
+
+        <p class="lead">In a session with Alice, Bob, Carol — Alice sends <code>"I'm vegetarian"</code> → deriver writes <strong>three rows</strong>:</p>
+        <table>
+          <thead><tr><th>observer</th><th>observed</th><th>content</th><th>meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Alice</td><td>Alice</td><td>is vegetarian</td><td>Alice's self-knowledge</td></tr>
+            <tr><td>Bob</td><td>Alice</td><td>is vegetarian</td><td>what Bob now knows about Alice</td></tr>
+            <tr><td>Carol</td><td>Alice</td><td>is vegetarian</td><td>what Carol now knows about Alice</td></tr>
+          </tbody>
+        </table>
+        <p>Query with <code>observer='Bob' AND observed='Alice'</code> to answer <em>"what does Bob know about Alice?"</em>. Privacy and perspective fall out naturally.</p>
+      </section>
+
+      <!-- =========================== DERIVER PIPELINE =========================== -->
+      <section>
+        <h2>Inside the deriver job</h2>
+        <ol>
+          <li><strong>Read watermark</strong> — <code>deriver_state</code> Delta KV table stores <code>last_processed_message_id</code>.</li>
+          <li><strong>Pull batch from Lakebase</strong> via JDBC: <code>SELECT … FROM messages WHERE id &gt; {watermark} ORDER BY id LIMIT 5000</code>.</li>
+          <li><strong>Resolve observers</strong> per (workspace, session) from <code>session_peers</code> where <code>left_at IS NULL</code>.</li>
+          <li><strong>Group + call LLM</strong> per <code>(workspace, session, observed=sender)</code> via <code>llm_dispatch.chat_sync(role='deriver', …)</code>.</li>
+          <li><strong>Fan out</strong> each extracted fact across observers (N facts × M observers = N×M rows).</li>
+          <li><strong>Deterministic ID</strong> — <code>sha256(workspace|observer|observed|content)[:24]</code>. Same tuple → same ID → MERGE deduplicates for free.</li>
+          <li><strong>MERGE into <code>documents_delta</code></strong> → trigger <code>documents_idx</code> sync (best-effort) → advance watermark.</li>
+        </ol>
+        <p class="legend"><small>Crash mid-batch is safe: next run reprocesses the same window, idempotent IDs make the MERGE a no-op.</small></p>
+      </section>
+
+      <!-- =========================== WEBHOOKS =========================== -->
+      <section>
+        <h2>Webhooks — outbound notifications</h2>
+        <p><strong>Pattern</strong>: <em>"foreman, when X happens in my workspace, tell my system Y so it can do Z."</em> Stripe-webhook-style HMAC-signed POSTs.</p>
+<div class="ascii">  [ foreman event ]  ──►  queue_items (Lakebase)
+                                │
+                                ▼
+                          webhooks job (every 1 min)
+                                │
+                                ▼
+                POST /your-url   X-Foreman-Event: <type>
+                                 X-Foreman-Signature: sha256=<hmac>
+                                 body: {event_type, workspace_name, occurred_at, data}
+                                │
+                                ▼
+                          webhook_results_delta</div>
+        <ul>
+          <li>2xx → success · 408/429/5xx → retryable · other 4xx → permanent.</li>
+          <li>Retries bounded across runs (skip if ≥ 5 prior attempts in <code>webhook_results_delta</code>) — failing endpoints aren't hammered forever.</li>
+          <li>Spark can't write Lakebase here (spine rule) — a Phase-3 reconciler flips <code>queue_items.processed</code> back in Lakebase from <code>webhook_results_delta</code>.</li>
+        </ul>
+      </section>
+
+      <!-- =========================== DIALECTIC =========================== -->
+      <section>
+        <h2>The dialectic agent</h2>
+        <p>A tool-calling chat loop that reasons over a peer's memory. Streams an SSE response with intermediate tool calls.</p>
+        <h3>Tools the loop can call</h3>
+        <ul>
+          <li><code>search_memory</code> — semantic query over <code>documents_idx</code> (derived facts).</li>
+          <li><code>search_messages</code> — semantic query over <code>messages_idx</code> (raw conversation).</li>
+          <li>Peer-card / session-summary / observer-observed lookups, etc.</li>
+        </ul>
+        <h3>Tool-calling quirk</h3>
+        <p>The Databricks SDK's <code>serving_endpoints.query</code> does <strong>not</strong> propagate a <code>tools=</code> param. <code>llm_dispatch._invoke</code> therefore routes any call with <code>tools</code> in kwargs through the OpenAI-compatible path against the same endpoint, regardless of the declared provider.</p>
+        <p class="legend"><small>Practical: a workspace must have <code>workspace_llm_config(role='dialectic', provider='openai-compatible', …)</code> for the agent to function.</small></p>
+      </section>
+
+      <!-- =========================== LLM DISPATCH =========================== -->
+      <section>
+        <h2>Per-workspace LLM configuration</h2>
+        <p>Five overridable roles per workspace in <code>workspace_llm_config</code>:</p>
+        <p><code>dialectic</code> · <code>deriver</code> · <code>summarizer</code> · <code>dreamer</code> · <code>embeddings</code></p>
+        <h3>Providers</h3>
+        <table>
+          <thead><tr><th>Provider</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td><code>fmapi</code></td><td>Databricks Foundation Model APIs (default, pay-per-token).</td></tr>
+            <tr><td><code>external</code></td><td>Any external endpoint registered in Model Serving (Anthropic, OpenAI, …).</td></tr>
+            <tr><td><code>openai-compatible</code></td><td>Any endpoint speaking the OpenAI Chat Completions wire format — required for tool-calling.</td></tr>
+            <tr><td><code>custom</code></td><td>Custom Model Serving endpoint (fine-tune, ChatAgent, …).</td></tr>
+          </tbody>
+        </table>
+        <p class="legend"><small><code>params</code> JSON is merged into every call. No cache — every call hits Lakebase to resolve.</small></p>
+      </section>
+
+      <!-- =========================== AUTH =========================== -->
+      <section>
+        <h2>Auth — HS256 JWT, hierarchical scopes</h2>
+<div class="ascii">  ┌─────────────────────────────────────────────────────┐
+  │   admin     │  every workspace, every action          │
+  │   workspace │  one workspace, every action            │
+  │   peer      │  one peer in one workspace              │
+  │   session   │  message-create within one session      │
+  └─────────────────────────────────────────────────────┘</div>
+        <ul>
+          <li>Signing key lives in Databricks secret <code>foreman/jwt_signing_key</code>; loaded + cached at process start.</li>
+          <li>Claims: <code>{ad?, w?, p?, s?, t, exp}</code>.</li>
+          <li>The bootstrap admin JWT is generated at install time and stored as <code>foreman/bootstrap_admin_token</code>.</li>
+          <li>Use it against <code>POST /workspaces/{w}/keys</code> to issue scoped tokens for downstream consumers.</li>
+        </ul>
+        <p class="legend"><small>v1 constraint: no Lakebase RLS. Anyone with direct Lakebase access bypasses honcho ACLs — auth is enforced at the API boundary, matching honcho's design.</small></p>
+      </section>
+
+      <!-- =========================== INSTALL =========================== -->
+      <section>
+        <h2>Install — one command, ~20 minutes</h2>
+        <pre><code class="language-bash">python install/install.py</code></pre>
+        <ol>
+          <li><code>install/bootstrap.py</code> — creates Lakebase instance (~5m), VS endpoint (~10m), secret scope, JWT signing key, bootstrap admin token.</li>
+          <li><code>databricks bundle deploy</code> — UC schema, FastAPI app, four background jobs.</li>
+          <li><code>databricks bundle run schema_init</code> — Alembic migrations against Lakebase, Delta tables, Lakebase ↔ Delta synced tables, both Vector Search indexes.</li>
+          <li><code>databricks bundle run foreman_app</code> — starts the FastAPI app.</li>
+        </ol>
+        <p class="legend"><small>Every resource is tagged <code>project=foreman</code> (jobs via <code>resources/jobs.yml</code>, Lakebase + VS endpoint via <code>install/bootstrap.py</code>) — the footprint is filterable in Account Usage / Billing.</small></p>
+      </section>
+
+      <!-- =========================== MCP =========================== -->
+      <section>
+        <h2>MCP server — Claude Code integration</h2>
+        <ul>
+          <li>stdio MCP server in <code>src/foreman/mcp/</code> exposes ~10 foreman tools to MCP clients (Claude Code, etc.).</li>
+          <li>Auth flows through <code>databricks-sdk</code> by default — OAuth U2M, PAT, or named profile.</li>
+          <li><code>FOREMAN_TOKEN</code> and <code>FOREMAN_BASE_URL</code> env vars override for CI / scripted setups.</li>
+          <li>Each tool call ultimately hits the same FastAPI REST surface as any other client.</li>
+        </ul>
+        <p class="lead">Net effect: an AI coding agent can directly inspect/modify a foreman deployment — list workspaces, query memory, post messages, issue tokens — without manually crafting HTTP calls.</p>
+      </section>
+
+      <!-- =========================== WHY DELTA =========================== -->
+      <section>
+        <h2>Why derived facts live in Delta (not Lakebase, not VS directly)</h2>
+        <ol>
+          <li><strong>Spark writes Delta natively.</strong> JDBC-to-Postgres from a Spark cluster is serial and brittle; Delta is parallel + MERGE-friendly + transactional. Right tool for the writer.</li>
+          <li><strong>Delta Sync VS <em>requires</em> a Delta source.</strong> Managed embeddings can only read from a UC Delta table with Change Data Feed. You cannot point Delta Sync at Postgres.</li>
+          <li><strong>Lakebase shouldn't absorb batch write pressure.</strong> The OLTP path must stay responsive on message-create. Delta absorbs batch load on separate storage + compute. Workload isolation.</li>
+          <li><strong>Delta is a replayable derived ledger.</strong> Swap the embedding model? Re-sync from <code>documents_delta</code>. Want analytics on extraction rates? Cheap SQL warehouse query.</li>
+        </ol>
+        <p class="lead muted"><small>One-line answer: derived knowledge lives in Delta because that's where Spark wants to write, where Delta Sync VS needs to read, and where Lakebase doesn't want to be bothered.</small></p>
+      </section>
+
+      <!-- =========================== TAKEAWAYS =========================== -->
+      <section>
+        <h2>Memory hooks — sentences to remember</h2>
+        <ol>
+          <li><strong>Lakebase is the ledger; everything else is a view of it.</strong> Messages land in Lakebase first, always.</li>
+          <li><strong>Two VS indexes, two write disciplines.</strong> <code>messages_idx</code> is hand-fed by the app for freshness; <code>documents_idx</code> is Databricks-managed from a Delta source because batch is fine.</li>
+          <li><strong>Delta is where Spark jobs put derived knowledge.</strong> It flows forward to <code>documents_idx</code> (app reads via VS) and reverse via synced tables to <code>documents_mirror</code> (transactional reads without JDBC-to-Delta).</li>
+          <li><strong><code>documents_delta</code> is foreman's long-term memory store</strong> — perspective-tagged facts, content-addressed IDs, MERGE for free idempotency.</li>
+          <li><strong>The webhooks job is the only thing in foreman that talks to the outside world after the fact.</strong></li>
+        </ol>
+        <p class="lead center" style="margin-top: 0.8em;">Synchronous freshness path through Direct Access VS · asynchronous derivation path through Delta + Delta Sync VS.</p>
+      </section>
+
+      <!-- =========================== END =========================== -->
+      <section class="title-slide">
+        <h1>fin.</h1>
+        <p class="lead">questions?</p>
+        <p><small>full deep-dive: <code>ARCHITECTURE EXPLAINED.md</code> · plan: <code>CLAUDE.md</code> · agent rules: <code>AGENTS.md</code></small></p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      transition: 'fade',
+      transitionSpeed: 'fast',
+      width: 1280,
+      height: 800,
+      margin: 0.06,
+      plugins: [ RevealHighlight, RevealNotes ]
+    });
+  </script>
+</body>
+</html>
