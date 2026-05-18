@@ -102,7 +102,14 @@ def test_search_workspace_messages_uses_vector_search(client, patch_session, wor
     async def fake_query(**kwargs):
         assert kwargs["workspace_name"] == "ws-a"
         return [
-            MessageHit(public_id="m1", workspace_name="ws-a", peer_name="p", session_name="s", score=0.9)
+            MessageHit(
+                public_id="m1",
+                workspace_name="ws-a",
+                peer_name="p",
+                session_name="s",
+                content="hello world",
+                score=0.9,
+            )
         ]
 
     with patch("foreman.app.routers.workspaces.vector_search.query_messages", side_effect=fake_query):
@@ -113,7 +120,14 @@ def test_search_workspace_messages_uses_vector_search(client, patch_session, wor
         )
     assert resp.status_code == 200
     assert resp.json() == [
-        {"public_id": "m1", "workspace_name": "ws-a", "peer_name": "p", "session_name": "s", "score": 0.9}
+        {
+            "public_id": "m1",
+            "workspace_name": "ws-a",
+            "peer_name": "p",
+            "session_name": "s",
+            "content": "hello world",
+            "score": 0.9,
+        }
     ]
 
 

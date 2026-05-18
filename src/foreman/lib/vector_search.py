@@ -33,6 +33,7 @@ class MessageHit:
     workspace_name: str
     peer_name: str
     session_name: str
+    content: str
     score: float
 
 
@@ -196,7 +197,7 @@ async def query_messages(
     raw = await asyncio.to_thread(
         _client().vector_search_indexes.query_index,
         index_name=s.messages_index,
-        columns=["public_id", "workspace_name", "peer_name", "session_name"],
+        columns=["public_id", "workspace_name", "peer_name", "session_name", "content"],
         query_vector=query_vector,
         query_text=query_text if hybrid else None,
         query_type="HYBRID" if hybrid else "ANN",
@@ -246,6 +247,7 @@ def _parse_message_hits(raw: Any) -> list[MessageHit]:
                 workspace_name=row[1],
                 peer_name=row[2],
                 session_name=row[3],
+                content=row[4] or "",
                 score=float(row[-1]),
             )
         )

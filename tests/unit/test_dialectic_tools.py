@@ -143,7 +143,7 @@ async def test_search_memory_argument_overrides_default_observer(ctx: tools.Tool
 async def test_search_messages_hydrates_from_lakebase(ctx: tools.ToolContext):
     fake_hit = MessageHit(
         public_id="m1", workspace_name="ws", peer_name="bob",
-        session_name="sess-1", score=0.88,
+        session_name="sess-1", content="hi", score=0.88,
     )
     rows = [{"public_id": "m1", "content": "hi", "created_at": datetime(2024, 1, 1)}]
     with patch.object(

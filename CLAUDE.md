@@ -94,7 +94,21 @@ Wired by `src/foreman/app/routers/__init__.py:all_routers()` in `main.py`. The d
 
 ## Using foreman as memory (dogfood)
 
-Foreman MCP tools are wired via `.mcp.json` and exposed to Claude Code as `mcp__foreman__*`. Workspace + peer attribution are read from `mcpServers.foreman.env` in `.mcp.json` (`FOREMAN_DEFAULT_WORKSPACE`, `FOREMAN_USER_PEER`, `FOREMAN_ASSISTANT_PEER`) — the MCP server and the Stop-hook CLI share that single config block. Session name = current git branch (slash → dash, lowercased). Substantive turns are auto-captured by the `Stop` hook in `.claude/settings.json`, which invokes `python -m foreman.mcp.capture`. That CLI shares the `capture_turn()` code with the `foreman_capture_turn` MCP tool ([src/foreman/mcp/capture.py](src/foreman/mcp/capture.py)). Capture is filtered — trivial chat is skipped — and soft-fails so a foreman outage never blocks a turn.
+Foreman MCP tools are wired via `.mcp.json` and exposed as `mcp__foreman__*`. Workspace + peer attribution come from `mcpServers.foreman.env` in `.mcp.json` (`FOREMAN_DEFAULT_WORKSPACE`, `FOREMAN_USER_PEER`, `FOREMAN_ASSISTANT_PEER`). Session name = current git branch (slash → dash, lowercased — see `normalize_session` in [src/foreman/mcp/capture.py](src/foreman/mcp/capture.py)). Capture is **agent-driven**: there is no Stop hook and no transcript parser — any agent calls `foreman_capture_turn` when it judges a turn worth persisting. Calls soft-fail so a foreman outage never blocks a turn.
+
+### When to call `foreman_capture_turn`
+
+Capture when the turn produced durable information a future session would benefit from:
+
+- User states facts about themselves, their team, or their environment ("I'm at Townebank", "we use profile=dev")
+- User expresses a preference or constraint that should govern future behavior
+- A decision is reached after weighing alternatives ("we picked X over Y because…")
+- A bug, incident, or surprise is diagnosed and the resolution outlives this conversation
+- An architectural call is made that future work must respect
+
+Do **not** capture routine code edits, file lookups, "what does this function do" Q&A, or trivial exchanges. Pass the current git branch as `branch=`; foreman handles session get-or-create.
+
+### When to read from foreman
 
 Don't call foreman MCP tools every turn. Only when prior context is load-bearing on the current task:
 

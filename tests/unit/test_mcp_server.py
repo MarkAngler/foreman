@@ -20,6 +20,7 @@ EXPECTED_TOOLS = {
     "foreman_send_messages",
     "foreman_search",
     "foreman_session_context",
+    "foreman_capture_turn",
     "foreman_list_workspaces",
     "foreman_create_workspace",
     "foreman_list_sessions",

@@ -89,7 +89,7 @@ def test_search_peer_messages(client, patch_session, workspace_token):
 
     async def fake_query(**kwargs):
         assert kwargs["peer_name"] == "peer-1"
-        return [MessageHit("m1", "ws-a", "peer-1", "sess-1", 0.7)]
+        return [MessageHit("m1", "ws-a", "peer-1", "sess-1", "body", 0.7)]
 
     with patch("foreman.app.routers.peers.vector_search.query_messages", side_effect=fake_query):
         resp = client.post(

@@ -205,10 +205,20 @@ async def stub_query_messages(**kwargs):
     sess = kwargs.get("session_name") or "sess-e2e"
     return [
         MessageHit(
-            public_id="msg-001", workspace_name=ws, peer_name=peer, session_name=sess, score=0.93
+            public_id="msg-001",
+            workspace_name=ws,
+            peer_name=peer,
+            session_name=sess,
+            content="hello there",
+            score=0.93,
         ),
         MessageHit(
-            public_id="msg-003", workspace_name=ws, peer_name=peer, session_name=sess, score=0.88
+            public_id="msg-003",
+            workspace_name=ws,
+            peer_name=peer,
+            session_name=sess,
+            content="goodbye",
+            score=0.88,
         ),
     ]
 

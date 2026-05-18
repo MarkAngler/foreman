@@ -96,6 +96,7 @@ class MessageHit(BaseModel):
     workspace_name: str
     peer_name: str
     session_name: str
+    content: str
     score: float
 
 

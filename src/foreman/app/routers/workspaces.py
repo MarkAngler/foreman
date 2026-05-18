@@ -169,6 +169,7 @@ async def search_workspace_messages(
             workspace_name=h.workspace_name,
             peer_name=h.peer_name,
             session_name=h.session_name,
+            content=h.content,
             score=h.score,
         )
         for h in hits
