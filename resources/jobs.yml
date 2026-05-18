@@ -1,0 +1,197 @@
+resources:
+  jobs:
+    schema_init:
+      name: "[${bundle.target}] foreman schema_init"
+      description: "Runs Alembic migrations, creates Delta + synced tables, and Vector Search indexes."
+      tags:
+        project: foreman
+      tasks:
+        - task_key: schema_init
+          spark_python_task:
+            python_file: ../src/foreman/jobs/schema_init/main.py
+            parameters:
+              - "FOREMAN_CATALOG=${var.catalog}"
+              - "FOREMAN_SCHEMA=${var.schema}"
+              - "FOREMAN_LAKEBASE_INSTANCE=${var.lakebase_instance_name}"
+              - "FOREMAN_LAKEBASE_DATABASE=${var.lakebase_database_name}"
+              - "FOREMAN_VS_ENDPOINT=${var.vs_endpoint_name}"
+              - "FOREMAN_JWT_SECRET_SCOPE=${var.jwt_secret_scope}"
+              - "FOREMAN_LLM_DEFAULT_DIALECTIC=${var.llm_default_dialectic}"
+              - "FOREMAN_LLM_DEFAULT_DERIVER=${var.llm_default_deriver}"
+              - "FOREMAN_LLM_DEFAULT_SUMMARIZER=${var.llm_default_summarizer}"
+              - "FOREMAN_LLM_DEFAULT_DREAMER=${var.llm_default_dreamer}"
+              - "FOREMAN_LLM_DEFAULT_EMBEDDINGS=${var.llm_default_embeddings}"
+              - "FOREMAN_EMBEDDING_DIM=${var.embedding_dim}"
+              - "FOREMAN_APP_NAME=foreman-${bundle.target}"
+          environment_key: serverless_env
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: ${var.serverless_client_version}
+            dependencies:
+              - ../dist/*.whl
+              - alembic>=1.14
+              - sqlalchemy>=2.0
+              - psycopg[binary]>=3.2
+              - databricks-sdk>=0.81.0
+              - databricks-vectorsearch>=0.59
+              - pydantic>=2.10
+              - pydantic-settings>=2.7
+              - mlflow>=3.0
+
+    deriver:
+      name: "[${bundle.target}] foreman deriver"
+      description: "Streaming deriver: extracts explicit facts from new messages."
+      tags:
+        project: foreman
+      tasks:
+        - task_key: deriver
+          spark_python_task:
+            python_file: ../src/foreman/jobs/deriver/main.py
+            parameters:
+              - "FOREMAN_CATALOG=${var.catalog}"
+              - "FOREMAN_SCHEMA=${var.schema}"
+              - "FOREMAN_LAKEBASE_INSTANCE=${var.lakebase_instance_name}"
+              - "FOREMAN_LAKEBASE_DATABASE=${var.lakebase_database_name}"
+              - "FOREMAN_VS_ENDPOINT=${var.vs_endpoint_name}"
+              - "FOREMAN_JWT_SECRET_SCOPE=${var.jwt_secret_scope}"
+              - "FOREMAN_LLM_DEFAULT_DIALECTIC=${var.llm_default_dialectic}"
+              - "FOREMAN_LLM_DEFAULT_DERIVER=${var.llm_default_deriver}"
+              - "FOREMAN_LLM_DEFAULT_SUMMARIZER=${var.llm_default_summarizer}"
+              - "FOREMAN_LLM_DEFAULT_DREAMER=${var.llm_default_dreamer}"
+              - "FOREMAN_LLM_DEFAULT_EMBEDDINGS=${var.llm_default_embeddings}"
+              - "FOREMAN_EMBEDDING_DIM=${var.embedding_dim}"
+          environment_key: serverless_env
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: ${var.serverless_client_version}
+            dependencies:
+              - ../dist/*.whl
+              - databricks-sdk>=0.81.0
+              - psycopg[binary]>=3.2
+              - pydantic>=2.10
+              - pydantic-settings>=2.7
+              - mlflow>=3.0
+      schedule:
+        quartz_cron_expression: "0 */1 * * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED
+
+    summarizer:
+      name: "[${bundle.target}] foreman summarizer"
+      description: "Rolling per-session summaries every N messages."
+      tags:
+        project: foreman
+      tasks:
+        - task_key: summarizer
+          spark_python_task:
+            python_file: ../src/foreman/jobs/summarizer/main.py
+            parameters:
+              - "FOREMAN_CATALOG=${var.catalog}"
+              - "FOREMAN_SCHEMA=${var.schema}"
+              - "FOREMAN_LAKEBASE_INSTANCE=${var.lakebase_instance_name}"
+              - "FOREMAN_LAKEBASE_DATABASE=${var.lakebase_database_name}"
+              - "FOREMAN_VS_ENDPOINT=${var.vs_endpoint_name}"
+              - "FOREMAN_JWT_SECRET_SCOPE=${var.jwt_secret_scope}"
+              - "FOREMAN_LLM_DEFAULT_DIALECTIC=${var.llm_default_dialectic}"
+              - "FOREMAN_LLM_DEFAULT_DERIVER=${var.llm_default_deriver}"
+              - "FOREMAN_LLM_DEFAULT_SUMMARIZER=${var.llm_default_summarizer}"
+              - "FOREMAN_LLM_DEFAULT_DREAMER=${var.llm_default_dreamer}"
+              - "FOREMAN_LLM_DEFAULT_EMBEDDINGS=${var.llm_default_embeddings}"
+              - "FOREMAN_EMBEDDING_DIM=${var.embedding_dim}"
+          environment_key: serverless_env
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: ${var.serverless_client_version}
+            dependencies:
+              - ../dist/*.whl
+              - databricks-sdk>=0.81.0
+              - psycopg[binary]>=3.2
+              - pydantic>=2.10
+              - pydantic-settings>=2.7
+              - mlflow>=3.0
+      schedule:
+        quartz_cron_expression: "0 */5 * * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED
+
+    dreamer:
+      name: "[${bundle.target}] foreman dreamer"
+      description: "Surprisal-prioritized deduction + induction over derived documents."
+      tags:
+        project: foreman
+      tasks:
+        - task_key: dreamer
+          spark_python_task:
+            python_file: ../src/foreman/jobs/dreamer/main.py
+            parameters:
+              - "FOREMAN_CATALOG=${var.catalog}"
+              - "FOREMAN_SCHEMA=${var.schema}"
+              - "FOREMAN_LAKEBASE_INSTANCE=${var.lakebase_instance_name}"
+              - "FOREMAN_LAKEBASE_DATABASE=${var.lakebase_database_name}"
+              - "FOREMAN_VS_ENDPOINT=${var.vs_endpoint_name}"
+              - "FOREMAN_JWT_SECRET_SCOPE=${var.jwt_secret_scope}"
+              - "FOREMAN_LLM_DEFAULT_DIALECTIC=${var.llm_default_dialectic}"
+              - "FOREMAN_LLM_DEFAULT_DERIVER=${var.llm_default_deriver}"
+              - "FOREMAN_LLM_DEFAULT_SUMMARIZER=${var.llm_default_summarizer}"
+              - "FOREMAN_LLM_DEFAULT_DREAMER=${var.llm_default_dreamer}"
+              - "FOREMAN_LLM_DEFAULT_EMBEDDINGS=${var.llm_default_embeddings}"
+              - "FOREMAN_EMBEDDING_DIM=${var.embedding_dim}"
+          environment_key: serverless_env
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: ${var.serverless_client_version}
+            dependencies:
+              - ../dist/*.whl
+              - databricks-sdk>=0.81.0
+              - psycopg[binary]>=3.2
+              - pydantic>=2.10
+              - pydantic-settings>=2.7
+              - mlflow>=3.0
+      schedule:
+        quartz_cron_expression: "0 0 * * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED
+
+    webhooks:
+      name: "[${bundle.target}] foreman webhooks"
+      description: "Delivers queued webhook events to registered endpoints."
+      tags:
+        project: foreman
+      tasks:
+        - task_key: webhooks
+          spark_python_task:
+            python_file: ../src/foreman/jobs/webhooks/main.py
+            parameters:
+              - "FOREMAN_CATALOG=${var.catalog}"
+              - "FOREMAN_SCHEMA=${var.schema}"
+              - "FOREMAN_LAKEBASE_INSTANCE=${var.lakebase_instance_name}"
+              - "FOREMAN_LAKEBASE_DATABASE=${var.lakebase_database_name}"
+              - "FOREMAN_VS_ENDPOINT=${var.vs_endpoint_name}"
+              - "FOREMAN_JWT_SECRET_SCOPE=${var.jwt_secret_scope}"
+              - "FOREMAN_LLM_DEFAULT_DIALECTIC=${var.llm_default_dialectic}"
+              - "FOREMAN_LLM_DEFAULT_DERIVER=${var.llm_default_deriver}"
+              - "FOREMAN_LLM_DEFAULT_SUMMARIZER=${var.llm_default_summarizer}"
+              - "FOREMAN_LLM_DEFAULT_DREAMER=${var.llm_default_dreamer}"
+              - "FOREMAN_LLM_DEFAULT_EMBEDDINGS=${var.llm_default_embeddings}"
+              - "FOREMAN_EMBEDDING_DIM=${var.embedding_dim}"
+          environment_key: serverless_env
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: ${var.serverless_client_version}
+            dependencies:
+              - ../dist/*.whl
+              - databricks-sdk>=0.81.0
+              - psycopg[binary]>=3.2
+              - httpx>=0.28
+              - pydantic>=2.10
+              - pydantic-settings>=2.7
+              - mlflow>=3.0
+      schedule:
+        quartz_cron_expression: "0 */1 * * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED

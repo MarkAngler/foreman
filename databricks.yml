@@ -1,0 +1,67 @@
+bundle:
+  name: foreman
+
+include:
+  - resources/*.yml
+
+artifacts:
+  foreman_wheel:
+    type: whl
+    path: .
+    files:
+      - source: ./dist/foreman-0.1.0-py3-none-any.whl
+
+variables:
+  serverless_client_version:
+    description: "Databricks serverless compute client version for spark_python_task environments."
+    default: "2"
+  catalog:
+    description: "UC catalog name for foreman tables and indexes."
+    default: foreman
+  schema:
+    description: "UC schema name within the catalog."
+    default: memory
+  lakebase_instance_name:
+    description: "Lakebase Provisioned instance name. Created by install/bootstrap.py."
+    default: foreman-lakebase
+  lakebase_database_name:
+    description: "Logical database inside the Lakebase instance."
+    default: memory
+  vs_endpoint_name:
+    description: "Vector Search endpoint hosting messages_idx and documents_idx."
+    default: foreman-vs
+  jwt_secret_scope:
+    description: "Databricks secret scope holding the JWT signing key and bootstrap admin token."
+    default: foreman
+  llm_default_dialectic:
+    description: "Default Model Serving endpoint for dialectic role."
+    default: databricks-claude-haiku-4-5
+  llm_default_deriver:
+    description: "Default Model Serving endpoint for deriver role."
+    default: databricks-claude-haiku-4-5
+  llm_default_summarizer:
+    description: "Default Model Serving endpoint for summarizer role."
+    default: databricks-claude-haiku-4-5
+  llm_default_dreamer:
+    description: "Default Model Serving endpoint for dreamer role."
+    default: databricks-claude-haiku-4-5
+  llm_default_embeddings:
+    description: "Default Model Serving endpoint for embeddings. Must match embedding_dim."
+    default: databricks-qwen3-embedding-0-6b
+  embedding_dim:
+    description: "Vector dimension produced by llm_default_embeddings. Pinned at index-create time."
+    default: "1024"
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      profile: dev
+
+  prod:
+    mode: production
+    workspace:
+      profile: prod
+    variables:
+      catalog: foreman_prod

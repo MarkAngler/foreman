@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>foreman — Live Deployment Defects</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --link: #58a6ff;
+    --blocker: #f85149;
+    --bug: #d29922;
+    --gap: #8957e5;
+    --obs: #58a6ff;
+    --open: #f85149;
+    --inprog: #d29922;
+    --fixed: #3fb950;
+    --code-bg: #1c2128;
+  }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 32px; }
+  header { max-width: 1100px; margin: 0 auto 24px; }
+  h1 { margin: 0 0 6px; font-size: 24px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 16px; }
+  .summary { display: flex; gap: 12px; flex-wrap: wrap; max-width: 1100px; margin: 0 auto 24px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; min-width: 140px; }
+  .stat .n { font-size: 22px; font-weight: 600; }
+  .stat .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  main { max-width: 1100px; margin: 0 auto; }
+  .defect { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--blocker); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
+  .defect.bug { border-left-color: var(--bug); }
+  .defect.gap { border-left-color: var(--gap); }
+  .defect.obs { border-left-color: var(--obs); }
+  .defect-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .id { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); font-size: 12px; }
+  .title { font-size: 16px; font-weight: 600; flex: 1; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+  .b-blocker { background: rgba(248,81,73,.15); color: var(--blocker); border: 1px solid rgba(248,81,73,.4); }
+  .b-bug     { background: rgba(210,153,34,.15); color: var(--bug);     border: 1px solid rgba(210,153,34,.4); }
+  .b-gap     { background: rgba(137,87,229,.15); color: var(--gap);     border: 1px solid rgba(137,87,229,.4); }
+  .b-obs     { background: rgba(88,166,255,.15); color: var(--obs);     border: 1px solid rgba(88,166,255,.4); }
+  .s-open    { background: rgba(248,81,73,.15); color: var(--open);    border: 1px solid rgba(248,81,73,.4); }
+  .s-inprog  { background: rgba(210,153,34,.15); color: var(--inprog); border: 1px solid rgba(210,153,34,.4); }
+  .s-fixed   { background: rgba(63,185,80,.15); color: var(--fixed);   border: 1px solid rgba(63,185,80,.4); }
+  table.meta { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+  table.meta td { padding: 4px 8px; vertical-align: top; }
+  table.meta td.k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; width: 140px; }
+  section.body { font-size: 14px; }
+  section.body h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+  section.body p { margin: 4px 0; }
+  ul, ol { margin: 4px 0; padding-left: 22px; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; background: var(--code-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; border: 1px solid var(--border); margin: 6px 0; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  footer { max-width: 1100px; margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>foreman — Live Deployment Defects</h1>
+  <p class="lede">Defects discovered while testing the deployed <code>foreman-dev</code> Databricks App and the <code>foreman</code> MCP server. Local code (220/220 unit tests, 28/28 in-process E2E assertions) is healthy; everything below is specific to the deployed runtime or the MCP↔Apps auth bridge.</p>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--blocker)"></span>Blocker — feature unusable</span>
+    <span><span class="swatch" style="background:var(--bug)"></span>Bug — behaves wrong</span>
+    <span><span class="swatch" style="background:var(--gap)"></span>Gap — missing capability / config</span>
+    <span><span class="swatch" style="background:var(--obs)"></span>Observation — possibly intentional</span>
+  </div>
+</header>
+
+<div class="summary">
+  <div class="stat"><div class="n" style="color:var(--blocker)">3</div><div class="l">Blockers</div></div>
+  <div class="stat"><div class="n" style="color:var(--bug)">1</div><div class="l">Bugs</div></div>
+  <div class="stat"><div class="n" style="color:var(--gap)">2</div><div class="l">Gaps</div></div>
+  <div class="stat"><div class="n" style="color:var(--obs)">1</div><div class="l">Observations</div></div>
+  <div class="stat"><div class="n" style="color:var(--fixed)">1</div><div class="l">Fixed in session</div></div>
+</div>
+
+<main>
+
+<!-- ============================================================== -->
+<article class="defect" id="FOR-001">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-001</span>
+      <div class="title">Deployed FastAPI rejects every dependency-injection annotation</div>
+    </div>
+    <div class="badges">
+      <span class="badge b-blocker">Blocker</span>
+      <span class="badge s-open">Open</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17 — by direct httpx probe with Databricks workspace OAuth Bearer</td></tr>
+    <tr><td class="k">Affects</td><td>Every FastAPI route in <code>foreman-dev</code> (deployed Databricks App)</td></tr>
+    <tr><td class="k">Affects code</td><td><a href="../src/foreman/lib/tracing.py#L32">src/foreman/lib/tracing.py:32</a>; every <code>@trace</code>-decorated handler in <a href="../src/foreman/app/routers/">src/foreman/app/routers/</a></td></tr>
+    <tr><td class="k">Owner</td><td>(unassigned)</td></tr>
+    <tr><td class="k">Target fix</td><td>(none set)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Symptom</h3>
+    <p>Every route returns 422 with payloads mis-classifying handler parameters as <em>required query parameters</em>:</p>
+    <pre>$ POST /workspaces/list  (Databricks-OAuth Bearer)
+422 {"detail":[
+  {"type":"missing","loc":["query","scope"], "msg":"Field required","input":null},
+  {"type":"missing","loc":["query","params"],"msg":"Field required","input":null}
+]}</pre>
+    <p><code>POST /workspaces</code> additionally reports <code>response</code> and <code>body</code> as missing query params. <code>POST /workspaces/{ws}/peers/list</code> returns 500.</p>
+
+    <h3>Root cause (suspected)</h3>
+    <p><code>trace = mlflow.trace</code> in <a href="../src/foreman/lib/tracing.py#L32">tracing.py:32</a> is re-exported and applied to every FastAPI handler (≈50 sites across <code>routers/</code>). FastAPI uses <code>inspect.signature()</code> to introspect dependency annotations. Locally <code>mlflow 3.12.0</code> preserves signatures and tests pass; on the deployed runtime, mlflow resolves to a version whose <code>@trace</code> wrapper strips <code>Annotated[..., Depends()]</code> info, so FastAPI falls back to treating every parameter as a required query param.</p>
+
+    <h3>Evidence</h3>
+    <ul>
+      <li>Local <code>inspect.signature(list_workspaces)</code> shows the full <code>Annotated[..., Depends(...)]</code> annotations.</li>
+      <li>Local in-process E2E (28 / 28 assertions) succeeds with the same code through <code>httpx.ASGITransport</code>.</li>
+      <li>Local unit suite (220 / 220) passes.</li>
+      <li>Deployed <code>/healthz</code> and <code>/</code> work (handlers without <code>Depends</code> deps).</li>
+      <li>Deployed <code>/openapi.json</code> returns 500 (consistent with broken introspection — see <a href="#FOR-005">FOR-005</a>).</li>
+    </ul>
+
+    <h3>Recommended fix</h3>
+    <ol>
+      <li><strong>Pin mlflow</strong> in <a href="../requirements.txt">requirements.txt</a> to the local-known-good version (currently <code>mlflow==3.12.0</code>), then redeploy.</li>
+      <li>If pinning isn't sufficient, move tracing <em>off</em> FastAPI handlers and apply <code>@trace</code> one layer down (service / repository functions) so signature introspection isn't disturbed.</li>
+      <li>Long-term: wrap with <code>functools.wraps(..., assigned=("__wrapped__","__signature__","__annotations__",...))</code> to guarantee survival regardless of mlflow version.</li>
+    </ol>
+
+    <h3>Reproduction</h3>
+    <pre>PYTHONPATH=src DATABRICKS_CONFIG_PROFILE=dev .venv/bin/python -c "
+import asyncio, httpx
+from databricks.sdk import WorkspaceClient
+async def go():
+    w = WorkspaceClient(); app = w.apps.get('foreman-dev')
+    async with httpx.AsyncClient(base_url=app.url, timeout=30) as h:
+        r = await h.post('/workspaces/list', headers=w.config.authenticate(), json={})
+        print(r.status_code, r.text)
+asyncio.run(go())"</pre>
+
+    <h3>Verification</h3>
+    <ul>
+      <li>After redeploy: <code>POST /workspaces/list</code> with Databricks OAuth Bearer returns 401 (foreman JWT decode failure) or 200, <em>not</em> 422 with query-param errors.</li>
+      <li><code>GET /openapi.json</code> returns 200.</li>
+      <li>Existing 220 unit tests still pass.</li>
+    </ul>
+  </section>
+</article>
+
+<!-- ============================================================== -->
+<article class="defect" id="FOR-002">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-002</span>
+      <div class="title">MCP client cannot traverse Databricks Apps OAuth proxy</div>
+    </div>
+    <div class="badges">
+      <span class="badge b-blocker">Blocker</span>
+      <span class="badge s-open">Open</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17 — first <code>foreman_list_workspaces</code> call</td></tr>
+    <tr><td class="k">Affects</td><td>All 10 foreman MCP tools when calling the deployed app</td></tr>
+    <tr><td class="k">Affects code</td><td><a href="../src/foreman/mcp/client.py#L36">src/foreman/mcp/client.py:36</a>, <a href="../src/foreman/mcp/auth.py#L117-L123">src/foreman/mcp/auth.py:117-123</a></td></tr>
+    <tr><td class="k">Owner</td><td>(unassigned)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Symptom</h3>
+    <p>Every request from <code>ForemanClient</code> to the deployed app returns HTTP 302 to the Databricks workspace OIDC login URL. The foreman HS256 JWT never reaches the FastAPI process.</p>
+    <pre>HTTP/1.1 302 Found
+location: https://adb-…/oidc/oauth2/v2.0/authorize?…&redirect_uri=…/.auth/callback&…
+content-length: 0</pre>
+
+    <h3>Root cause</h3>
+    <p>Databricks Apps' OAuth proxy gatekeeps every request. <code>ForemanClient._headers()</code> in <a href="../src/foreman/mcp/client.py#L36">client.py:36</a> sends only <code>Authorization: Bearer &lt;foreman_HS256_JWT&gt;</code>. The proxy doesn't recognize this token and redirects before forwarding. The entire foreman JWT system in <a href="../src/foreman/lib/auth.py">lib/auth.py</a> is therefore unreachable from outside the workspace.</p>
+
+    <h3>Recommended fix</h3>
+    <p>Pick one of:</p>
+    <ul>
+      <li><strong>(a) Trust Databricks OAuth identity:</strong> drop the foreman HS256 JWT layer entirely; have <code>current_scope</code> derive identity from the proxy's injected headers (<code>X-Forwarded-User</code>, <code>X-Forwarded-Email</code>, etc.) and re-derive scope from per-workspace ACL tables.</li>
+      <li><strong>(b) Dual-header scheme:</strong> client sends <em>both</em> a Databricks OAuth Bearer (for the proxy) and the foreman JWT in <code>X-Foreman-Token</code>; a new FastAPI dependency reads the custom header first, falling back to <code>Authorization</code> for in-process testing.</li>
+      <li><strong>(c) Disable Apps OAuth:</strong> if the app is intended for trusted machine-to-machine use, configure the App to not require user authorization (Databricks docs: <em>Apps user authorization</em>) and keep the foreman JWT as sole auth.</li>
+    </ul>
+    <p>Recommendation: option <strong>(b)</strong> — preserves the existing foreman scope/JWT design while satisfying the Apps proxy contract.</p>
+
+    <h3>Reproduction</h3>
+    <pre>PYTHONPATH=src DATABRICKS_CONFIG_PROFILE=dev FOREMAN_TARGET=dev \
+  .venv/bin/python -c "
+import asyncio
+from foreman.mcp.client import ForemanClient
+asyncio.run(ForemanClient().list_workspaces())   # returns None (see FOR-003)"</pre>
+
+    <h3>Verification</h3>
+    <ul>
+      <li>After fix: every MCP tool returns the documented response shape; no <code>302</code> in raw httpx capture.</li>
+      <li>Add an integration test under <code>tests/integration/</code> that hits the deployed app from a CI principal with Databricks OAuth + foreman JWT.</li>
+    </ul>
+  </section>
+</article>
+
+<!-- ============================================================== -->
+<article class="defect" id="FOR-003">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-003</span>
+      <div class="title">ForemanClient silently swallows 3xx redirects, returning <code>None</code></div>
+    </div>
+    <div class="badges">
+      <span class="badge b-blocker">Blocker</span>
+      <span class="badge s-open">Open</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17 — explains why <code>foreman_list_workspaces</code> "succeeded" with payload <code>null</code></td></tr>
+    <tr><td class="k">Affects</td><td>Every <code>ForemanClient</code> method that uses <code>_request</code> (all REST tools; not <code>chat</code>)</td></tr>
+    <tr><td class="k">Affects code</td><td><a href="../src/foreman/mcp/client.py#L48-L54">src/foreman/mcp/client.py:48-54</a>, <a href="../src/foreman/mcp/client.py#L209-L215">209-215</a></td></tr>
+    <tr><td class="k">Owner</td><td>(unassigned)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Symptom</h3>
+    <p>Any 3xx response with an empty body (typical for OAuth-proxy redirects) is treated as a successful no-content reply. Callers receive <code>None</code> with no error, indicator, or log.</p>
+    <pre>async def _request(self, method, path, **kwargs):
+    async with self._client() as c:
+        resp = await c.request(method, path, headers=self._headers(), **kwargs)
+    _raise_for_status(resp)                       # only fires on >=400
+    if resp.status_code == 204 or not resp.content:
+        return None                               # 302 with empty body → None
+    return resp.json()</pre>
+    <p>This bug masked <a href="#FOR-002">FOR-002</a> completely during the first probe; the tool "appeared to succeed" with payload <code>null</code>.</p>
+
+    <h3>Recommended fix</h3>
+    <ul>
+      <li>Set <code>follow_redirects=True</code> on the <code>httpx.AsyncClient</code> in <a href="../src/foreman/mcp/client.py#L41-L46">client.py:41-46</a>, or</li>
+      <li>Explicitly raise on any <code>3xx</code> in <code>_raise_for_status</code>, including the <code>Location</code> header in the error message so the redirect target is visible.</li>
+    </ul>
+
+    <h3>Verification</h3>
+    <ul>
+      <li>Add a unit test: <code>respx</code> mocks a <code>302</code>; expect <code>RuntimeError</code> containing the <code>Location</code> URL.</li>
+      <li>Live: with FOR-002 still open, an MCP tool call now surfaces the OIDC redirect URL instead of returning <code>None</code>.</li>
+    </ul>
+  </section>
+</article>
+
+<!-- ============================================================== -->
+<article class="defect bug" id="FOR-004">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-004</span>
+      <div class="title">Deployed <code>/openapi.json</code> returns 500</div>
+    </div>
+    <div class="badges">
+      <span class="badge b-bug">Bug</span>
+      <span class="badge s-open">Open</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17</td></tr>
+    <tr><td class="k">Affects</td><td>API discoverability; <code>/docs</code> page renders but cannot populate</td></tr>
+    <tr><td class="k">Affects code</td><td>Likely downstream of <a href="#FOR-001">FOR-001</a> (FastAPI schema generation chokes on the malformed signatures)</td></tr>
+    <tr><td class="k">Owner</td><td>(unassigned)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Symptom</h3>
+    <p><code>GET /openapi.json</code> on the deployed app returns <code>500 Internal Server Error</code> with empty body. <code>GET /docs</code> serves the Swagger HTML which then fails to render any routes.</p>
+    <h3>Likely fix</h3>
+    <p>Re-test after <a href="#FOR-001">FOR-001</a> is resolved; should self-clear because FastAPI's schema generator depends on the same signature introspection that's broken there.</p>
+  </section>
+</article>
+
+<!-- ============================================================== -->
+<article class="defect gap" id="FOR-005">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-005</span>
+      <div class="title"><code>.mcp.json</code> missing <code>DATABRICKS_CONFIG_PROFILE</code> for foreman entry</div>
+    </div>
+    <div class="badges">
+      <span class="badge b-gap">Gap</span>
+      <span class="badge s-fixed">Fixed</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17 — first MCP tool call failed credential resolution</td></tr>
+    <tr><td class="k">Affects</td><td>MCP server cold-start on any machine where the Databricks SDK <code>DEFAULT</code> profile is empty</td></tr>
+    <tr><td class="k">Fixed by</td><td>This session — see <a href="../.mcp.json">.mcp.json</a> diff (added <code>DATABRICKS_CONFIG_PROFILE=dev</code> and <code>FOREMAN_TARGET=dev</code>)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Symptom</h3>
+    <pre>could not initialize WorkspaceClient — run `databricks auth login` or
+set FOREMAN_TOKEN + FOREMAN_BASE_URL. underlying:
+default auth: cannot configure default credentials …</pre>
+    <p>The sibling <code>databricks</code> MCP entry in the same file explicitly sets <code>DATABRICKS_CONFIG_PROFILE=DEFAULT</code>; the <code>foreman</code> entry inherited nothing.</p>
+    <h3>Fix applied</h3>
+    <pre>"foreman": {
+  "command": ".venv/bin/python",
+  "args": ["-m", "foreman.mcp"],
+  "defer_loading": true,
+  "env": {
+    "PYTHONPATH": "src",
+    "DATABRICKS_CONFIG_PROFILE": "dev",
+    "FOREMAN_TARGET": "dev"
+  }
+}</pre>
+    <p>Future Claude Code sessions will resolve credentials; same-session MCP child process retains the old env.</p>
+    <h3>Follow-up</h3>
+    <ul>
+      <li>Decide whether the default profile name should be a setting that the install script writes, rather than a hand-edited static value (would matter for non-dev / non-Mark contributors).</li>
+    </ul>
+  </section>
+</article>
+
+<!-- ============================================================== -->
+<article class="defect gap" id="FOR-006">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-006</span>
+      <div class="title">No integration test exercises MCP → live FastAPI</div>
+    </div>
+    <div class="badges">
+      <span class="badge b-gap">Gap</span>
+      <span class="badge s-open">Open</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17 — explains why FOR-001/002/003 reached production</td></tr>
+    <tr><td class="k">Affects</td><td>CI confidence</td></tr>
+    <tr><td class="k">Owner</td><td>(unassigned)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Symptom</h3>
+    <p><code>tests/unit/test_mcp_*.py</code> (19 tests) all mock <code>ForemanClient</code> — they validate request <em>shape</em> but never <em>flight</em>. <a href="#FOR-001">FOR-001</a>, <a href="#FOR-002">FOR-002</a>, and <a href="#FOR-003">FOR-003</a> would all have been caught by a single round-trip integration test that uses <code>httpx.AsyncClient(transport=ASGITransport(app))</code> against the local FastAPI app.</p>
+
+    <h3>Recommended fix</h3>
+    <ol>
+      <li>Promote the one-shot driver at <code>/tmp/foreman_e2e_local.py</code> (28/28 PASS) to <code>tests/integration/test_mcp_e2e.py</code>.</li>
+      <li>Add a separate <code>@pytest.mark.integration</code> test that hits the actual deployed <code>foreman-dev</code> app with Databricks OAuth (would catch FOR-001 and FOR-002 in CI before user-facing failures).</li>
+    </ol>
+  </section>
+</article>
+
+<!-- ============================================================== -->
+<article class="defect obs" id="FOR-007">
+  <div class="defect-head">
+    <div>
+      <span class="id">FOR-007</span>
+      <div class="title"><code>session_context</code> returns empty 200 for non-existent session</div>
+    </div>
+    <div class="badges">
+      <span class="badge b-obs">Observation</span>
+      <span class="badge s-open">Open</span>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="k">Discovered</td><td>2026-05-17 — in-process E2E edge-case probe</td></tr>
+    <tr><td class="k">Affects</td><td><a href="../src/foreman/app/routers/sessions.py#L374-L410">src/foreman/app/routers/sessions.py:374-410</a> (<code>get_session_context</code>)</td></tr>
+  </table>
+  <section class="body">
+    <h3>Behavior</h3>
+    <p><code>GET /workspaces/{ws}/sessions/{s}/context</code> does no session-existence check before reading messages. A missing session yields:</p>
+    <pre>200 OK
+{"name":"never-existed","messages":[],"summary":null}</pre>
+    <p>Compare with <code>messages.upload</code>, <code>clone</code>, and <code>summaries</code> which all <code>_assert_session_exists</code>.</p>
+    <h3>Decision needed</h3>
+    <p>Either (a) prepend <code>_assert_session_exists</code> to <code>get_session_context</code> for consistency, or (b) document the forgiving behavior in the route docstring and the MCP tool description.</p>
+  </section>
+</article>
+
+</main>
+
+<footer>
+  <p>Generated 2026-05-17 from comprehensive MCP E2E test run. Edit the <code>s-open</code>/<code>s-inprog</code>/<code>s-fixed</code> status badges and the <em>Owner</em> / <em>Target fix</em> fields as defects progress. New defects: copy an existing <code>&lt;article class="defect"&gt;</code> block, assign the next <code>FOR-NNN</code> id, and update the <em>Summary</em> counters at the top.</p>
+  <p>Test artifacts: in-process driver at <code>/tmp/foreman_e2e_local.py</code> (28/28 PASS); unit suite <code>PYTHONPATH=src .venv/bin/python -m pytest tests/unit/</code> (220/220 PASS); summary log at <code>/tmp/foreman_e2e_summary.log</code>.</p>
+</footer>
+
+</body>
+</html>

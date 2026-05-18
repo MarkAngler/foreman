@@ -1,0 +1,54 @@
+resources:
+  apps:
+    foreman_app:
+      name: foreman-${bundle.target}
+      description: "foreman — honcho.dev rebuild on Databricks"
+      source_code_path: ..
+      config:
+        command:
+          - "uvicorn"
+          - "foreman.app.main:app"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
+        env:
+          - name: PYTHONPATH
+            value: "src"
+          - name: FOREMAN_CATALOG
+            value: ${var.catalog}
+          - name: FOREMAN_SCHEMA
+            value: ${var.schema}
+          - name: FOREMAN_LAKEBASE_INSTANCE
+            value: ${var.lakebase_instance_name}
+          - name: FOREMAN_LAKEBASE_DATABASE
+            value: ${var.lakebase_database_name}
+          - name: FOREMAN_VS_ENDPOINT
+            value: ${var.vs_endpoint_name}
+          - name: FOREMAN_JWT_SECRET_SCOPE
+            value: ${var.jwt_secret_scope}
+          - name: FOREMAN_LLM_DEFAULT_DIALECTIC
+            value: ${var.llm_default_dialectic}
+          - name: FOREMAN_LLM_DEFAULT_DERIVER
+            value: ${var.llm_default_deriver}
+          - name: FOREMAN_LLM_DEFAULT_SUMMARIZER
+            value: ${var.llm_default_summarizer}
+          - name: FOREMAN_LLM_DEFAULT_DREAMER
+            value: ${var.llm_default_dreamer}
+          - name: FOREMAN_LLM_DEFAULT_EMBEDDINGS
+            value: ${var.llm_default_embeddings}
+          - name: FOREMAN_EMBEDDING_DIM
+            value: ${var.embedding_dim}
+      resources:
+        - name: lakebase
+          description: "Lakebase Provisioned instance (OAuth credentials provisioned to the app SP)"
+          database:
+            database_name: ${var.lakebase_database_name}
+            instance_name: ${var.lakebase_instance_name}
+            permission: CAN_CONNECT_AND_CREATE
+        - name: jwt_signing_key
+          description: "JWT signing key (HS256)"
+          secret:
+            scope: ${var.jwt_secret_scope}
+            key: jwt_signing_key
+            permission: READ

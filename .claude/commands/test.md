@@ -1,0 +1,1 @@
+/goal Test foreman features, end to end, comprehensively
