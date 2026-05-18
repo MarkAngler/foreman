@@ -92,6 +92,18 @@ Wired by `src/foreman/app/routers/__init__.py:all_routers()` in `main.py`. The d
 - Use `fastapi-pagination` (already a dep) for list endpoints.
 - **Commit messages**: Conventional Commits (`feat:`, `fix:`, `refactor:`, etc.). **Do not reference Claude, Anthropic, or any AI tool in commit messages.**
 
+## Using foreman as memory (dogfood)
+
+Foreman MCP tools are wired via `.mcp.json` and exposed to Claude Code as `mcp__foreman__*`. Workspace + peer attribution are read from `mcpServers.foreman.env` in `.mcp.json` (`FOREMAN_DEFAULT_WORKSPACE`, `FOREMAN_USER_PEER`, `FOREMAN_ASSISTANT_PEER`) — the MCP server and the Stop-hook CLI share that single config block. Session name = current git branch (slash → dash, lowercased). Substantive turns are auto-captured by the `Stop` hook in `.claude/settings.json`, which invokes `python -m foreman.mcp.capture`. That CLI shares the `capture_turn()` code with the `foreman_capture_turn` MCP tool ([src/foreman/mcp/capture.py](src/foreman/mcp/capture.py)). Capture is filtered — trivial chat is skipped — and soft-fails so a foreman outage never blocks a turn.
+
+Don't call foreman MCP tools every turn. Only when prior context is load-bearing on the current task:
+
+- **`mcp__foreman__foreman_search`** — when the user references something with a definite article you can't resolve from this conversation ("the bug we found", "the approach we picked", "that PR"); when deciding between approaches that may have been debated before; when returning to a topic after a long context gap (e.g. post-compaction).
+- **`mcp__foreman__foreman_session_context`** — once at the top of a conversation that resumes mid-task on a branch with prior captured history. Pass `session_name=<branch>`, `tokens<=2000`.
+- **`mcp__foreman__foreman_chat`** (dialectic) — when you need synthesized belief across many prior turns ("what does Mark prefer when X comes up") rather than a raw recall. Use `peer_name="mark"`, `reasoning_level="low"` by default. Requires `workspace_llm_config(role='dialectic', provider='openai-compatible', ...)` per the tool-calling quirk above; surface failures rather than silently degrading.
+
+Don't query foreman to answer questions about *the foreman codebase itself* — read the code. Foreman is for things you can't get from grep: prior decisions, conversational context, evolving user preferences.
+
 ## Spine = frozen
 
 Files listed under "Spine contracts" in `AGENTS.md` are Phase-1 frozen. This includes everything in `src/foreman/lib/`, all of `schema/`, `databricks.yml`, every `resources/*.yml`, `install/bootstrap.py`, `src/foreman/jobs/schema_init/`, `src/foreman/app/main.py`, `tests/spine_smoke.py`, `tests/unit/test_auth.py`, and `tests/unit/test_config.py`. Extend `main.py` to wire new routers; do not replace it. New files anywhere else are fair game. New dependencies in `requirements.txt`/`pyproject.toml` are allowed when clearly justified.
