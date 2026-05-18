@@ -15,6 +15,7 @@ from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
+from foreman.mcp.capture import capture_turn as _capture_turn
 from foreman.mcp.client import ForemanClient
 
 mcp = FastMCP("foreman")
@@ -154,6 +155,28 @@ async def foreman_session_context(
         session_name=session_name,
         tokens=tokens,
         include_summary=include_summary,
+    )
+
+
+@mcp.tool()
+async def foreman_capture_turn(
+    user_text: str,
+    assistant_text: str,
+    branch: str,
+    metadata: dict | None = None,
+) -> dict:
+    """Append a user+assistant turn to a branch-scoped session.
+
+    Workspace and peer attribution come from server env: FOREMAN_DEFAULT_WORKSPACE,
+    FOREMAN_USER_PEER, FOREMAN_ASSISTANT_PEER. Session name is derived from
+    `branch` (slash → dash, lowercased). Get-or-creates the session.
+    """
+    return await _capture_turn(
+        user_text=user_text,
+        assistant_text=assistant_text,
+        branch=branch,
+        metadata=metadata,
+        client=_client,
     )
 
 
