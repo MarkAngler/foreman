@@ -49,9 +49,7 @@ QUEUE_QUERY = (
     "WHERE task_type = 'webhook' AND processed = FALSE "
     f"ORDER BY created_at LIMIT {QUEUE_BATCH_SIZE}"
 )
-ENDPOINTS_QUERY = (
-    "SELECT id, workspace_name, url, secret, event_types FROM webhook_endpoints"
-)
+ENDPOINTS_QUERY = "SELECT id, workspace_name, url, secret, event_types FROM webhook_endpoints"
 
 
 def info(msg: str) -> None:
@@ -176,14 +174,14 @@ def run(spark: SparkSession) -> int:
     endpoints_by_workspace = _group_endpoints(endpoints_df.collect())
     prior_attempts = _attempt_counts(spark)
 
-    info(f"processing {len(queue_rows)} queue items across {len(endpoints_by_workspace)} workspaces")
+    info(
+        f"processing {len(queue_rows)} queue items across {len(endpoints_by_workspace)} workspaces"
+    )
 
     all_rows: list[dict[str, Any]] = []
     with httpx.Client(timeout=30.0) as client:
         for item in queue_rows:
-            all_rows.extend(
-                _process_item(item, endpoints_by_workspace, prior_attempts, client)
-            )
+            all_rows.extend(_process_item(item, endpoints_by_workspace, prior_attempts, client))
 
     if not all_rows:
         info("no deliveries attempted (no matching endpoints)")
@@ -204,4 +202,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Databricks spark_python_task exec wrapper treats SystemExit (even with
+    # code 0) as task failure. Only raise on non-zero.
+    _rc = main()
+    if _rc != 0:
+        sys.exit(_rc)

@@ -62,7 +62,7 @@ class SessionWindow:
     workspace_name: str
     session_name: str
     last_summarised_id: int  # exclusive lower bound; 0 if never summarised
-    new_high_water_id: int   # the id we will advance the state watermark to
+    new_high_water_id: int  # the id we will advance the state watermark to
     messages_in_window: int
 
 
@@ -115,9 +115,7 @@ def read_state(spark: SparkSession) -> dict[tuple[str, str], int]:
     }
 
 
-def write_state(
-    spark: SparkSession, *, advanced: Iterable[tuple[str, str, int]]
-) -> None:
+def write_state(spark: SparkSession, *, advanced: Iterable[tuple[str, str, int]]) -> None:
     """MERGE-upsert one row per (workspace, session) with the new watermark."""
     advanced = list(advanced)
     if not advanced:
@@ -239,9 +237,7 @@ def _unsummarised_count(*, row: Any, watermark: int) -> int:
 # ---- Message fetch -----------------------------------------------------------
 
 
-def fetch_window(
-    spark: SparkSession, *, window: SessionWindow
-) -> list[MessageTurn]:
+def fetch_window(spark: SparkSession, *, window: SessionWindow) -> list[MessageTurn]:
     """Pull the message window for one session in id order."""
     # Identifiers come from validated honcho schema (CHECK regex on names);
     # still escape single quotes defensively.
@@ -307,8 +303,7 @@ def summarise(
 ) -> str:
     _tag_span(workspace_name=workspace_name, session_name=session_name)
     formatted = "\n".join(
-        format_message_turn(m.content, _as_datetime(m.created_at), m.peer_name)
-        for m in messages
+        format_message_turn(m.content, _as_datetime(m.created_at), m.peer_name) for m in messages
     )
     output_words = int(MAX_TOKENS_SHORT * 0.75)
     prompt = short_summary_prompt(
@@ -360,9 +355,7 @@ def _extract_text(response: Any) -> str:
                 return content
         if isinstance(payload.get("content"), str):
             return payload["content"]
-    raise ValueError(
-        f"summarizer: unrecognised LLM response shape: {type(response).__name__}"
-    )
+    raise ValueError(f"summarizer: unrecognised LLM response shape: {type(response).__name__}")
 
 
 def _as_datetime(value: Any) -> datetime:
@@ -376,9 +369,7 @@ def _as_datetime(value: Any) -> datetime:
 # ---- Delta write -------------------------------------------------------------
 
 
-def build_summary_dataframe(
-    spark: SparkSession, drafts: list[SummaryDraft]
-) -> DataFrame:
+def build_summary_dataframe(spark: SparkSession, drafts: list[SummaryDraft]) -> DataFrame:
     from pyspark.sql import Row
     from pyspark.sql.types import (
         IntegerType,
@@ -415,9 +406,7 @@ def build_summary_dataframe(
 # ---- Orchestration -----------------------------------------------------------
 
 
-def process_session(
-    spark: SparkSession, *, window: SessionWindow
-) -> SummaryDraft | None:
+def process_session(spark: SparkSession, *, window: SessionWindow) -> SummaryDraft | None:
     messages = fetch_window(spark, window=window)
     if not messages:
         logger.info(
@@ -479,9 +468,7 @@ def main() -> int:
         if draft is None:
             continue
         drafts.append(draft)
-        advanced.append(
-            (window.workspace_name, window.session_name, window.new_high_water_id)
-        )
+        advanced.append((window.workspace_name, window.session_name, window.new_high_water_id))
 
     if drafts:
         df = build_summary_dataframe(spark, drafts)
@@ -516,4 +503,8 @@ __all__ = [
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Databricks spark_python_task exec wrapper treats SystemExit (even with
+    # code 0) as task failure. Only raise on non-zero.
+    _rc = main()
+    if _rc != 0:
+        sys.exit(_rc)

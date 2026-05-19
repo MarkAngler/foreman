@@ -108,9 +108,7 @@ def write_watermark(spark: SparkSession, new_value: int) -> None:
 # ---- Message fetch -----------------------------------------------------------
 
 
-def fetch_new_messages(
-    spark: SparkSession, *, after_id: int, limit: int
-) -> list[MessageRow]:
+def fetch_new_messages(spark: SparkSession, *, after_id: int, limit: int) -> list[MessageRow]:
     query = (
         "SELECT id, public_id, session_name, peer_name, workspace_name, "
         "content, created_at "
@@ -191,9 +189,7 @@ def _as_datetime(value: Any) -> datetime:
 # ---- Delta write -------------------------------------------------------------
 
 
-def build_doc_dataframe(
-    spark: SparkSession, drafts: list[Any]
-) -> DataFrame:
+def build_doc_dataframe(spark: SparkSession, drafts: list[Any]) -> DataFrame:
     from pyspark.sql import Row
     from pyspark.sql.types import (
         ArrayType,
@@ -342,4 +338,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Databricks spark_python_task exec wrapper treats SystemExit (even with
+    # code 0) as task failure. Only raise on non-zero.
+    _rc = main()
+    if _rc != 0:
+        sys.exit(_rc)

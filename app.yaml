@@ -9,3 +9,27 @@ command:
 env:
   - name: PYTHONPATH
     value: "src"
+  - name: FOREMAN_CATALOG
+    value: "foreman"
+  - name: FOREMAN_SCHEMA
+    value: "memory"
+  - name: FOREMAN_LAKEBASE_INSTANCE
+    value: "foreman-db"
+  - name: FOREMAN_LAKEBASE_DATABASE
+    value: "memory"
+  - name: FOREMAN_VS_ENDPOINT
+    value: "foreman-vs"
+  - name: FOREMAN_JWT_SECRET_SCOPE
+    value: "foreman"
+  - name: FOREMAN_LLM_DEFAULT_DIALECTIC
+    value: "databricks-claude-haiku-4-5"
+  - name: FOREMAN_LLM_DEFAULT_DERIVER
+    value: "databricks-claude-haiku-4-5"
+  - name: FOREMAN_LLM_DEFAULT_SUMMARIZER
+    value: "databricks-claude-haiku-4-5"
+  - name: FOREMAN_LLM_DEFAULT_DREAMER
+    value: "databricks-claude-haiku-4-5"
+  - name: FOREMAN_LLM_DEFAULT_EMBEDDINGS
+    value: "databricks-qwen3-embedding-0-6b"
+  - name: FOREMAN_EMBEDDING_DIM
+    value: "1024"

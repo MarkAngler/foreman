@@ -15,4 +15,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Databricks spark_python_task exec wrapper treats SystemExit (even with
+    # code 0) as task failure. Only raise on non-zero.
+    _rc = main()
+    if _rc != 0:
+        sys.exit(_rc)
