@@ -3,6 +3,7 @@ bundle:
 
 include:
   - resources/*.yml
+  - "*.local.yml"
 
 artifacts:
   foreman_wheel:
