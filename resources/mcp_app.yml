@@ -1,0 +1,48 @@
+resources:
+  apps:
+    mcp_foreman_app:
+      name: mcp-foreman-${bundle.target}
+      description: "foreman — read-only memory MCP for Databricks Genie / Agent Bricks (OBO peer-scoped)"
+      source_code_path: ..
+      # On-Behalf-Of (OBO) authorization is enabled out-of-band via the
+      # Databricks Apps UI or REST API, then the app must be fully stopped and
+      # started (not just redeployed) so x-forwarded-access-token is injected.
+      # See install/genie_register.md for the exact steps.
+      config:
+        command:
+          - "uvicorn"
+          - "foreman.mcp_http.app:app"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
+        env:
+          - name: PYTHONPATH
+            value: "src"
+          - name: FOREMAN_CATALOG
+            value: ${var.catalog}
+          - name: FOREMAN_SCHEMA
+            value: ${var.schema}
+          - name: FOREMAN_LAKEBASE_INSTANCE
+            value: ${var.lakebase_instance_name}
+          - name: FOREMAN_LAKEBASE_DATABASE
+            value: ${var.lakebase_database_name}
+          - name: FOREMAN_VS_ENDPOINT
+            value: ${var.vs_endpoint_name}
+          - name: FOREMAN_JWT_SECRET_SCOPE
+            value: ${var.jwt_secret_scope}
+          - name: FOREMAN_LLM_DEFAULT_EMBEDDINGS
+            value: ${var.llm_default_embeddings}
+          - name: FOREMAN_EMBEDDING_DIM
+            value: ${var.embedding_dim}
+          # FOREMAN_MCP_WORKSPACE must be set by the operator (e.g. in a
+          # *.local.yml override or via the Databricks Apps env panel). The
+          # mcp_http server refuses to start without it — peer scoping is
+          # bound to exactly one Foreman workspace at startup.
+      resources:
+        - name: lakebase
+          description: "Lakebase Provisioned instance (OAuth credentials provisioned to the app SP)"
+          database:
+            database_name: ${var.lakebase_database_name}
+            instance_name: ${var.lakebase_instance_name}
+            permission: CAN_CONNECT_AND_CREATE
